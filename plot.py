@@ -13,7 +13,7 @@ pretty_names = {"basicNegamax": "Basic NegaMax",
                 "final2": "Final 2"
                 }
 
-layout = {"width": 1024,
+img_layout = {"width": 1024,
           "height": 800}
 
 
@@ -71,8 +71,8 @@ def get_dnt_per_bot(bot_type):
 # Plotting Functions
 def plot_depth_by_round():
     for bot in get_bot_types():
-        layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=layout["width"],
-                           height=layout["height"])
+        layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=img_layout["width"],
+                           height=img_layout["height"])
         data = []
         for index in range(0, 100):
             data.append(go.Box(
