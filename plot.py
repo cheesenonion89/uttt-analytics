@@ -115,7 +115,6 @@ def plot_dnt_scatter(viz):
                 title="Time"
             )
         )
-
     )
     fig = go.Figure(data=data, layout=layout)
     py.image.save_as(fig, filename='scatter_test.png')
