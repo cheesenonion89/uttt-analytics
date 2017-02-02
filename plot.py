@@ -3,16 +3,18 @@ import plotly.graph_objs as go
 import plotly.plotly as py
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
-
 engine_logs = pd.read_csv('df_engine_logs.csv', header=0, sep=';')
 bot_logs = pd.read_csv('df_bot_logs.csv', header=0, sep=';')
 
 # Utils
 pretty_names = {"basicNegamax": "Basic NegaMax",
-         "contestNegamax": "Contest NegaMax",
-         "final1": "Final 1",
-         "final2": "Final 2"
-         }
+                "contestNegamax": "Contest NegaMax",
+                "final1": "Final 1",
+                "final2": "Final 2"
+                }
+
+layout = {"width": 1024,
+          "height": 800}
 
 
 def get_player_combinations(df):
@@ -58,7 +60,8 @@ def get_depth_traces_by_round(bot_type, round_number):
 # Plotting Functions
 def plot_depth_by_round():
     for bot in get_bot_types():
-        layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=1024, height=800)
+        layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=layout["width"],
+                           height=layout["height"])
         data = []
         for index in range(0, 100):
             data.append(go.Box(
