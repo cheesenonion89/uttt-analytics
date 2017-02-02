@@ -51,10 +51,21 @@ def get_depth_traces_by_game(bot_type, game_number):
     return df['depth'].tolist()
 
 
+def get_trace_by_attribute(bot_type, attribute):
+    df = get_bot_log_by_bot_type(bot_type)
+    df = df[[attribute]]
+    return df[attribute].tolist()
+
+
 def get_depth_traces_by_round(bot_type, round_number):
     df = get_bot_log_by_bot_type(bot_type)
     df = df[(df['round_number'] == round_number)][['depth']]
     return df['depth'].tolist()
+
+
+def get_dnt_per_bot(bot_type):
+    df = get_bot_log_by_bot_type(bot_type)
+    return df[['depth', 'nodes', 'time']]
 
 
 # Plotting Functions
@@ -72,4 +83,45 @@ def plot_depth_by_round():
         py.image.save_as(plot, filename='depth_by_round/depth_by_round_' + bot + '.png')
 
 
-plot_depth_by_round()
+def plot_dnt_scatter(viz):
+    data = []
+    for bot in get_bot_types():
+        trace = go.Scatter3d(
+            name=pretty_names[bot],
+            x=get_trace_by_attribute(bot, 'depth'),
+            y=get_trace_by_attribute(bot, 'nodes'),
+            z=get_trace_by_attribute(bot, 'time'),
+            mode='markers',
+            marker=dict(
+                size=4
+            )
+        )
+        data.append(trace)
+    layout = go.Layout(
+        margin=dict(
+            l=0,
+            r=0,
+            b=0,
+            t=0
+        ),
+        scene=dict(
+            xaxis=dict(
+                title="Depth"
+            ),
+            yaxis=dict(
+                title="Nodes"
+            ),
+            zaxis=dict(
+                title="Time"
+            )
+        )
+
+    )
+    fig = go.Figure(data=data, layout=layout)
+    py.image.save_as(fig, filename='scatter_test.png')
+    if viz:
+        plot(fig)
+
+
+# plot_depth_by_round()
+plot_dnt_scatter(False)
