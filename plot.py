@@ -55,25 +55,18 @@ def get_depth_traces_by_round(bot_type, round_number):
     return df['depth'].tolist()
 
 
-# Plotting
-for bot in get_bot_types():
-    layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=1024, height=800)
-    data = []
-    for index in range(0, 100):
-        data.append(go.Box(
-            name=str(index),
-            y=get_depth_traces_by_round(bot, index)
-        ))
-    plot = go.Figure(data=data, layout=layout)
-    py.image.save_as(plot, filename='depth_by_round/depth_by_round_' + bot + '.png')
+# Plotting Functions
+def plot_depth_by_round():
+    for bot in get_bot_types():
+        layout = go.Layout(title='Depth per Round - ' + pretty_names[bot], width=1024, height=800)
+        data = []
+        for index in range(0, 100):
+            data.append(go.Box(
+                name=str(index),
+                y=get_depth_traces_by_round(bot, index)
+            ))
+        plot = go.Figure(data=data, layout=layout)
+        py.image.save_as(plot, filename='depth_by_round/depth_by_round_' + bot + '.png')
 
 
-
-
-
-
-# print(get_winning_stats('CONTEST', 'FINAL1'))
-# print(get_winning_stats('BASIC', 'CONTEST'))
-
-# print(get_bot_log_by_bot_type('final1')['player1'].count())
-# print(get_bot_log_by_bot_type('final1').groupby(['player1','player2'])['bot_type'].count())
+plot_depth_by_round()
