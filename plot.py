@@ -3,6 +3,9 @@ import plotly.graph_objs as go
 import plotly.plotly as py
 import statistics
 from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
+import matplotlib.pyplot as plt
+import numpy as np
+import radar_plot as rd
 
 engine_logs = pd.read_csv('df_engine_logs.csv', header=0, sep=';')
 bot_logs = pd.read_csv('df_bot_logs.csv', header=0, sep=';')
@@ -107,6 +110,24 @@ def get_bot_log_by_round_group(group):
 def get_trace_bot_attribute(bot_type, attribute):
     df = get_bot_log_by_bot_type(bot_type)
     df = df[[attribute]]
+    return df[attribute].tolist()
+
+
+def get_trace_bot_attribute(bot_type, attribute, player1_filter, player2_filter):
+    if not (player1_filter or player2_filter):
+        return get_bot_log_by_bot_type(bot_type, attribute)
+    if not bot_type:
+        df = bot_logs
+        if player1_filter:
+            df = filter_on_player1(df, player1_filter)
+        if player2_filter:
+            df = filter_on_player2(df, player2_filter)
+        return df[attribute].tolist()
+    df = get_bot_log_by_bot_type(bot_type)
+    if player1_filter:
+        df = filter_on_player1(df, player1_filter)
+    if player2_filter:
+        df = filter_on_player2(df, player2_filter)
     return df[attribute].tolist()
 
 
@@ -257,7 +278,6 @@ def plot_bots_dnt_bars():
     data = []
 
     for index, dimension in enumerate(dimensions):
-
         trace = go.Bar(
             x=['2D Array', '1D Array', 'BitBoard'],
             y=[
@@ -433,9 +453,62 @@ def plot_round_group_dnt_scatter(viz):
         plot(fig, filename=plot_folder['scatter_dnt_html'] + file_name + '.html')
 
 
+######### SUPER AWESOME RADAR PLOT ###########
+def plot_radar_bots():
+    spoke_labels = ['Nodes', 'Depth', 'Time', 'CacheHits', 'CacheSize']
+    data = []
+    labels = []
+
+    nodes_list = get_trace_bot_attribute(None, 'nodes', None, 'RANDOM')
+    depth_list = get_trace_bot_attribute(None, 'depth', None, 'RANDOM')
+    time_list = get_trace_bot_attribute(None, 'time', None, 'RANDOM')
+    cachesz_list = get_trace_bot_attribute(None, 'cache_size', None, 'RANDOM')
+    cachedp_list = get_trace_bot_attribute(None, 'cache_hits', None, 'RANDOM')
+
+    for bot in get_bot_types():
+        labels.append(pretty_names[bot])
+        stats = [
+            statistics.mean(map(lambda x: (x - min(nodes_list)) / max(nodes_list),
+                                get_trace_bot_attribute(bot, 'nodes', None, 'RANDOM'))),
+            statistics.mean(map(lambda x: (x - min(depth_list)) / max(depth_list),
+                                get_trace_bot_attribute(bot, 'depth', None, 'RANDOM'))),
+            statistics.mean(map(lambda x: (x - min(time_list)) / max(time_list),
+                                get_trace_bot_attribute(bot, 'time', None, 'RANDOM'))),
+            statistics.mean(map(lambda x: (x - min(cachedp_list)) / max(cachedp_list),
+                                get_trace_bot_attribute(bot, 'cache_hits', None, 'RANDOM'))),
+            statistics.mean(map(lambda x: (x - min(cachesz_list)) / max(cachesz_list),
+                                get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM'))),
+        ]
+        data.append(stats)
+
+    theta = rd.radar_factory(5, frame='polygon')
+
+    print(theta)
+
+    fig, ax = plt.subplots(subplot_kw=dict(projection='radar'))
+
+    colors = ['b', 'r', 'g', 'm', 'y']
+
+    for index, row in enumerate(data):
+        ax.plot(np.array(theta), np.array(row), color=colors[index])
+        ax.fill(np.array(theta), np.array(row), facecolor=colors[index], alpha=0.25)
+        ax.set_varlabels(spoke_labels)
+
+    ax.legend(labels, loc=(0.9, .95),
+                       labelspacing=0.1, fontsize='small')
+
+    fig.text(0.5, 0.965, 'Bot Performance vs Random (Average)',
+             horizontalalignment='center', color='black', weight='bold',
+             size='large')
+
+    plt.show()
+
+
 # plot_depth_by_round()
 # plot_bot_dnt_scatter(True)
 # plot_round_dnt_scatter(True)
 # plot_round_group_dnt_scatter(True)
 # plot_boards_dnt_bars()
-plot_bots_dnt_bars()
+# plot_bots_dnt_bars()
+
+plot_radar_bots()
