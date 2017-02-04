@@ -6,6 +6,8 @@ from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import matplotlib.pyplot as plt
 import numpy as np
 import radar_plot as rd
+import pylab as pl
+import radar_simple as rds
 
 engine_logs = pd.read_csv('df_engine_logs.csv', header=0, sep=';')
 bot_logs = pd.read_csv('df_bot_logs.csv', header=0, sep=';')
@@ -504,6 +506,35 @@ def plot_radar_bots():
     plt.show()
 
 
+def plot_radar_bots2():
+    fig = pl.figure(figsize=(6, 6))
+
+    titles = ["Nodes", "Depth", "Time", "CacheHits", "CacheSize"]
+
+    labels = [
+        [0, 140000, 280000],
+        [0, 5, 10],
+        [0, 300, 600],
+        [0, 1250, 2500],
+        [0, 4250, 8500]
+    ]
+
+    colors = ['r','g','b','y']
+    radar = rds.Radar(fig, titles, labels)
+    for index, bot in enumerate(get_bot_types()):
+        data = [
+            statistics.mean(get_trace_bot_attribute(bot, 'nodes', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'depth', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'time', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'cache_hits', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM')),
+        ]
+        radar.plot(data, "-", lw=2, color=colors[index], alpha=0.4, label=pretty_names[bot])
+
+    radar.ax.legend()
+    pl.show()
+
+
 # plot_depth_by_round()
 # plot_bot_dnt_scatter(True)
 # plot_round_dnt_scatter(True)
@@ -511,4 +542,13 @@ def plot_radar_bots():
 # plot_boards_dnt_bars()
 # plot_bots_dnt_bars()
 
-plot_radar_bots()
+plot_radar_bots2()
+bot='final1'
+print(
+[
+            statistics.mean(get_trace_bot_attribute(bot, 'nodes', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'depth', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'time', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'cache_hits', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM')),
+        ])
