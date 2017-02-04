@@ -28,20 +28,20 @@ pretty_names = {"basicNegamax": "Basic NegaMax",
                 "NOTABUG": "Not A Bug"
                 }
 
-short_names= {"basicNegamax": "Bas.NM",
-                "contestNegamax": "Con.NM",
-                "final1": "Final1",
-                "final2": "Final2",
-                "1d": "1D",
-                "2d": "2D",
-                "bit": "BitBoard",
-                "RANDOM": "Random",
-                "FINAL1": "Final1",
-                "FINAL2": "Final2",
-                "CONTEST": "Con.NM",
-                "BASIC": "Bas.NM",
-                "NOTABUG": "NABug"
-                }
+short_names = {"basicNegamax": "Bas.NM",
+               "contestNegamax": "Con.NM",
+               "final1": "Final1",
+               "final2": "Final2",
+               "1d": "1D",
+               "2d": "2D",
+               "bit": "BitBoard",
+               "RANDOM": "Random",
+               "FINAL1": "Final1",
+               "FINAL2": "Final2",
+               "CONTEST": "Con.NM",
+               "BASIC": "Bas.NM",
+               "NOTABUG": "NABug"
+               }
 
 bot_type_name_map = {
     "FINAL1": "final1",
@@ -265,6 +265,16 @@ def get_nps_per_bot(bot_type):
     df = get_bot_log_by_bot_type(bot_type)
     df = df['nodes'].divide(df['time'])
     df *= 1000
+
+    return df.tolist()
+
+
+def get_nps_per_bot_per_round(bot_type, round):
+    df = get_bot_log_by_bot_type(bot_type)
+    df = df[(df['round_number'] == round)]
+    df = df['nodes'].divide(df['time'])
+    df *= 1000
+    df = df[df < 2500000]
     return df.tolist()
 
 
@@ -298,6 +308,20 @@ def plot_depth_by_round():
             ))
         plot = go.Figure(data=data, layout=layout)
         py.image.save_as(plot, filename=plot_folder['depth_by_round'] + '/depth_by_round_' + bot + '.png')
+
+
+def plot_nps_by_round():
+    for bot in get_bot_types():
+        layout = go.Layout(title='Nodes per Second per Round - ' + pretty_names[bot], width=img_layout['width'],
+                           height=img_layout['height'])
+        data = []
+        for index in range(0, 100):
+            data.append(go.Box(
+                name=str(index),
+                y=get_nps_per_bot_per_round(bot, index)
+            ))
+        plot = go.Figure(data=data, layout=layout)
+        py.image.save_as(plot, filename=plot_folder['depth_by_round'] + '/nps_by_round_' + bot + '.png')
 
 
 ######## BAR PLOTS ########
@@ -620,7 +644,7 @@ def plot_radar_bots2():
     pl.show()
 
 
-######### LINE PLOT ##########################
+######### LINE PLOTS ##########################
 def plot_lines_bot():
     depth_color = colors_for_the_colorblind[0]
     nodes_color = colors_for_the_colorblind[1]
@@ -759,6 +783,101 @@ def plot_lines_bot():
     py.image.save_as(fig, filename=plot_folder['line_plot'] + file_name + '.png')
 
 
+def plot_lines_vsNotABug():
+    depth_color = colors_for_the_colorblind[1]
+    nps_color = colors_for_the_colorblind[2]
+    time_color = colors_for_the_colorblind[3]
+    file_name = '/line_bot_notABug'
+    x_axis = ['vs Random', 'vs Not A Bug']
+    trace1 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_trace_bot_attribute('final1', 'depth', 'FINAL1', 'RANDOM') +
+                            get_trace_bot_attribute('final1', 'depth', 'FINAL1', 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final2', 'depth', 'FINAL2', 'RANDOM') +
+                            get_trace_bot_attribute('final2', 'depth', 'FINAL2', 'RANDOM'))
+        ],
+        name='Depth',
+        marker=dict(color=depth_color)
+
+    )
+    trace2 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_trace_bot_attribute('final1', 'time', 'FINAL1', 'RANDOM') +
+                            get_trace_bot_attribute('final1', 'time', 'FINAL1', 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final2', 'time', 'FINAL2', 'RANDOM') +
+                            get_trace_bot_attribute('final2', 'time', 'FINAL2', 'RANDOM'))
+        ],
+        name='Time',
+        yaxis='y2',
+        marker=dict(color=time_color)
+    )
+    trace3 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_nps_per_bot('final1', 'FINAL1', 'RANDOM')+
+                            get_nps_per_bot('final2', 'FINAL2', 'RANDOM')),
+            statistics.mean(get_nps_per_bot('final1', 'FINAL1', 'NOTABUG') +
+                            get_nps_per_bot('final2', 'FINAL2', 'NOTABUG'))
+        ],
+        name='Nodes Per Second',
+        yaxis='y3',
+        marker=dict(color=nps_color)
+    )
+    data = [trace1, trace2, trace3]
+    layout = go.Layout(
+        title='Average Performance Against Random and Not A Bug',
+        width=800,
+        xaxis=dict(
+            domain=[0.05, 0.95]
+        ),
+        yaxis=dict(
+            # title='Depth',
+            titlefont=dict(
+                color=depth_color
+            ),
+            tickfont=dict(
+                color=depth_color
+            ),
+            showgrid=False,
+            nticks=5
+        ),
+        yaxis2=dict(
+            # title='yaxis2 title',
+            titlefont=dict(
+                color=time_color
+            ),
+            tickfont=dict(
+                color=time_color
+            ),
+            anchor='free',
+            overlaying='y',
+            side='left',
+            # position=0.11,
+            showgrid=False,
+            nticks=5
+
+        ),
+        yaxis3=dict(
+            # title='yaxis4 title',
+            titlefont=dict(
+                color=nps_color
+            ),
+            tickfont=dict(
+                color=nps_color
+            ),
+            anchor='x',
+            overlaying='y',
+            side='right',
+            showgrid=False,
+            nticks=5
+        )
+    )
+    fig = go.Figure(data=data, layout=layout)
+    py.image.save_as(fig, filename=plot_folder['line_plot'] + file_name + '.png')
+
+
 ########### HORIZONTAL BAR PLOT ##########
 def plot_match_results():
     matches = np.array([
@@ -795,7 +914,8 @@ def plot_match_results():
     traces = []
     data = [wins, losses, draws]
     opacity = 0.6
-    colors = ['rgba(2,84,0,'+str(opacity)+')', 'rgba(138,0,2,'+str(opacity)+')', 'rgba(138,133,127,'+str(opacity)+')']
+    colors = ['rgba(2,84,0,' + str(opacity) + ')', 'rgba(138,0,2,' + str(opacity) + ')',
+              'rgba(138,133,127,' + str(opacity) + ')']
     colors_lines = ['rgb(2,84,0)', 'rgb(138,0,2)', 'rgba(138,133,127,1']
     labels = ['Wins', 'Losses', 'Draws']
     for i in range(0, 3):
@@ -815,12 +935,12 @@ def plot_match_results():
             )
         )
 
-    layout=go.Layout(
+    layout = go.Layout(
         barmode='stack',
         yaxis=dict(
         ),
         xaxis=dict(
-            domain=[0.1,1]
+            domain=[0.1, 1]
         )
     )
 
@@ -828,8 +948,8 @@ def plot_match_results():
     py.image.save_as(fig, filename='winning_stats.png')
 
 
-
 # plot_depth_by_round()
+plot_nps_by_round()
 # plot_bot_dnt_scatter(True)
 # plot_round_dnt_scatter(True)
 # plot_round_group_dnt_scatter(True)
@@ -847,8 +967,3 @@ print(
         statistics.mean(get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM'))
     ])
 
-# plot_lines_bot()
-
-print(get_player_combinations(bot_logs))
-
-plot_match_results()
