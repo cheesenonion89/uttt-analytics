@@ -19,8 +19,43 @@ pretty_names = {"basicNegamax": "Basic NegaMax",
                 "final2": "Final 2",
                 "1d": "1D Array",
                 "2d": "2D Array",
-                "bit": "Bit Board"
+                "bit": "Bit Board",
+                "RANDOM": "Random Bot",
+                "FINAL1": "Final 1",
+                "FINAL2": "Final 2",
+                "CONTEST": "Contest NegaMax",
+                "BASIC": "Basic NegaMax",
+                "NOTABUG": "Not A Bug"
                 }
+
+short_names= {"basicNegamax": "Bas.NM",
+                "contestNegamax": "Con.NM",
+                "final1": "Final1",
+                "final2": "Final2",
+                "1d": "1D",
+                "2d": "2D",
+                "bit": "BitBoard",
+                "RANDOM": "Random",
+                "FINAL1": "Final1",
+                "FINAL2": "Final2",
+                "CONTEST": "Con.NM",
+                "BASIC": "Bas.NM",
+                "NOTABUG": "NABug"
+                }
+
+bot_type_name_map = {
+    "FINAL1": "final1",
+    "FINAL2": "final2",
+    "CONTEST": "contestNegamax",
+    "BASIC": "basicNegamax"
+}
+
+bot_name_type_map = {
+    "final1": "FINAL1",
+    "final2": "FINAL2",
+    "contestNegamax": "CONTEST",
+    "basicNegamax": "BASIC"
+}
 
 img_layout = dict(width=1024,
                   height=800)
@@ -32,7 +67,8 @@ plot_folder = dict(
     scatter_dnt='scatter_dnt',
     depth_by_round='depth_by_round',
     scatter_dnt_html='scatter_3d_interactive',
-    dnt_by_board='dnt_by_board'
+    dnt_by_board='dnt_by_board',
+    line_plot='line_plot'
 )
 
 round_groups = [
@@ -57,6 +93,14 @@ board_bot_map = {
     'bit': ['final1', 'final2']
 }
 
+colors_for_the_colorblind = [
+    '#7F0303',  # colorblind red
+    '#1F1E1E',  # colorblind dark gray
+    '#2C3AFF',  # colorblind blue
+    '#BFA500',  # colorblind yellow
+    '#8C8882',  # colorblind light gray
+]
+
 board_types = ['2d', '1d', 'bit']
 
 
@@ -78,18 +122,35 @@ def get_engine_games_by_player(player1, player2):
 
 
 def get_winning_stats(player1, player2):
+    stats = dict(
+        player=player1,
+        opponent=player2,
+        wins=0,
+        draws=0,
+        losses=0
+    )
     df = get_engine_games_by_player(player1, player2)
-    result = ""
-    result += str(player1) + " : " + str(df.loc[df['winnerId'] == df['playerId']]['player1'].count()) + "\n"
-    result += str(player2) + " : " + str(
-        df.loc[(df['winnerId'] != df['playerId']) & (df['winnerId'] != 0)]['player1'].count()) + "\n"
-    result += "draw" + " : " + str(df.loc[df['winnerId'] == 0]['player1'].count())
-    return result
+    stats['wins'] = df.loc[df['winnerId'] == df['playerId']]['player1'].count()
+    stats['losses'] = df.loc[(df['winnerId'] != df['playerId']) & (df['winnerId'] != 0)]['player1'].count()
+    stats['draws'] = df.loc[df['winnerId'] == 0]['player1'].count()
+    return stats
 
 
-# Functions on bot_logs
+def print_winning_stats(player1, player2):
+    stats = get_winning_stats(player1, player2)
+    print(pretty_names[player1] + ' wins: ' + str(stats['wins']))
+    print(pretty_names[player2] + ' wins: ' + str(stats['losses']))
+    print('draws:' + str(stats['draws']))
+
+
 def get_bot_types():
     return bot_logs['bot_type'].drop_duplicates().tolist()
+
+
+def get_bot_names():
+    df = bot_logs['player1'].drop_duplicates()
+    df = df.append(bot_logs['player2'])
+    return df.drop_duplicates().tolist()
 
 
 def get_round_numbers():
@@ -97,7 +158,9 @@ def get_round_numbers():
 
 
 def get_bot_log_by_bot_type(bot_type):
-    return bot_logs[(bot_logs['bot_type'] == bot_type)]
+    df = bot_logs[(bot_logs['bot_type'] == bot_type)]
+    df = df[(df['time'] > 0)]
+    return df
 
 
 def get_bot_log_by_round_number(round_number):
@@ -196,6 +259,26 @@ def get_dnt_per_bot(bot_type):
 def get_dnt_per_round(round_number):
     df = get_bot_log_by_round_number(round_number)
     return df[['depth', 'nodes', 'time']]
+
+
+def get_nps_per_bot(bot_type):
+    df = get_bot_log_by_bot_type(bot_type)
+    df = df['nodes'].divide(df['time'])
+    df *= 1000
+    return df.tolist()
+
+
+def get_nps_per_bot(bot_type, player1_filter, player2_filter):
+    if not (player1_filter or player2_filter):
+        return get_nps_per_bot(bot_type)
+    df = get_bot_log_by_bot_type(bot_type)
+    if player1_filter:
+        df = filter_on_player1(df, player1_filter)
+    if player2_filter:
+        df = filter_on_player2(df, player2_filter)
+    df = df['nodes'].divide(df['time'])
+    df *= 1000
+    return df.tolist()
 
 
 ######################################################################################################################
@@ -456,6 +539,7 @@ def plot_round_group_dnt_scatter(viz):
 
 
 ######### SUPER AWESOME RADAR PLOT ###########
+# Ugly
 def plot_radar_bots():
     spoke_labels = ['Nodes', 'Depth', 'Time', 'CacheHits', 'CacheSize']
     data = []
@@ -497,7 +581,7 @@ def plot_radar_bots():
         ax.set_varlabels(spoke_labels)
 
     ax.legend(labels, loc=(0.9, .95),
-                       labelspacing=0.1, fontsize='small')
+              labelspacing=0.1, fontsize='small')
 
     fig.text(0.5, 0.965, 'Bot Performance vs Random (Average)',
              horizontalalignment='center', color='black', weight='bold',
@@ -506,6 +590,7 @@ def plot_radar_bots():
     plt.show()
 
 
+# Needs adaptation of y-axis ranges in Radar class
 def plot_radar_bots2():
     fig = pl.figure(figsize=(6, 6))
 
@@ -519,7 +604,7 @@ def plot_radar_bots2():
         [0, 4250, 8500]
     ]
 
-    colors = ['r','g','b','y']
+    colors = ['r', 'g', 'b', 'y']
     radar = rds.Radar(fig, titles, labels)
     for index, bot in enumerate(get_bot_types()):
         data = [
@@ -535,6 +620,215 @@ def plot_radar_bots2():
     pl.show()
 
 
+######### LINE PLOT ##########################
+def plot_lines_bot():
+    depth_color = colors_for_the_colorblind[0]
+    nodes_color = colors_for_the_colorblind[1]
+    nps_color = colors_for_the_colorblind[2]
+    time_color = colors_for_the_colorblind[3]
+    wins_color = colors_for_the_colorblind[4]
+    file_name = '/line_bot_performance'
+    x_axis = [pretty_names['basicNegamax'], pretty_names['contestNegamax'], pretty_names['final1'],
+              pretty_names['final2']]
+    trace1 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_trace_bot_attribute('basicNegamax', 'depth', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('contestNegamax', 'depth', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final1', 'depth', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final2', 'depth', None, 'RANDOM'))
+        ],
+        name='Depth',
+        marker=dict(color=depth_color)
+
+    )
+    trace2 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_trace_bot_attribute('basicNegamax', 'nodes', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('contestNegamax', 'nodes', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final1', 'nodes', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final2', 'nodes', None, 'RANDOM'))
+
+        ],
+        name='Nodes',
+        yaxis='y2',
+        marker=dict(color=nodes_color)
+    )
+    trace3 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_nps_per_bot('basicNegamax', None, 'RANDOM')),
+            statistics.mean(get_nps_per_bot('contestNegamax', None, 'RANDOM')),
+            statistics.mean(get_nps_per_bot('final1', None, 'RANDOM')),
+            statistics.mean(get_nps_per_bot('final2', None, 'RANDOM'))
+        ],
+        name='Nodes Per Second',
+        yaxis='y3',
+        marker=dict(color=nps_color)
+    )
+    trace4 = go.Scatter(
+        x=x_axis,
+        y=[
+            statistics.mean(get_trace_bot_attribute('basicNegamax', 'time', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('contestNegamax', 'time', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final1', 'time', None, 'RANDOM')),
+            statistics.mean(get_trace_bot_attribute('final2', 'time', None, 'RANDOM'))
+        ],
+        name='Time',
+        yaxis='y4',
+        marker=dict(color=time_color)
+    )
+    trace5 = go.Scatter(
+        x=x_axis,
+        y=[
+            get_winning_stats('BASIC', 'RANDOM')['wins'],
+            get_winning_stats('CONTEST', 'RANDOM')['wins'],
+            get_winning_stats('FINAL1', 'RANDOM')['wins'],
+            get_winning_stats('FINAL2', 'RANDOM')['wins']
+        ],
+        name='Wins vs Random(%)',
+        marker=dict(color=wins_color)
+    )
+    data = [trace1, trace2, trace3, trace4]
+    layout = go.Layout(
+        title='Average Performance Per Bot',
+        width=800,
+        xaxis=dict(
+            domain=[0.05, 0.95]
+        ),
+        yaxis=dict(
+            # title='Depth',
+            titlefont=dict(
+                color=depth_color
+            ),
+            tickfont=dict(
+                color=depth_color
+            ),
+            showgrid=False,
+            nticks=5
+        ),
+        yaxis2=dict(
+            # title='yaxis2 title',
+            titlefont=dict(
+                color=nodes_color
+            ),
+            tickfont=dict(
+                color=nodes_color
+            ),
+            anchor='free',
+            overlaying='y',
+            side='left',
+            # position=0.11,
+            showgrid=False,
+            nticks=5
+
+        ),
+        yaxis3=dict(
+            # title='yaxis4 title',
+            titlefont=dict(
+                color=nps_color
+            ),
+            tickfont=dict(
+                color=nps_color
+            ),
+            anchor='x',
+            overlaying='y',
+            side='right',
+            showgrid=False,
+            nticks=5
+        ),
+        yaxis4=dict(
+            # title='yaxis4 title',
+            titlefont=dict(
+                color=time_color
+            ),
+            tickfont=dict(
+                color=time_color
+            ),
+            anchor='x',
+            overlaying='y',
+            side='right',
+            showgrid=False,
+            position=0.95,
+            nticks=5,
+            autorange='reversed'
+        )
+    )
+    fig = go.Figure(data=data, layout=layout)
+    py.image.save_as(fig, filename=plot_folder['line_plot'] + file_name + '.png')
+
+
+########### HORIZONTAL BAR PLOT ##########
+def plot_match_results():
+    matches = np.array([
+        ['BASIC', 'RANDOM'],
+        ['CONTEST', 'RANDOM'],
+        ['FINAL1', 'RANDOM'],
+        ['FINAL2', 'RANDOM'],
+        ['BASIC', 'CONTEST'],
+        ['CONTEST', 'FINAL1'],
+        ['FINAL1', 'FINAL2'],
+        ['FINAL1', 'NOTABUG'],
+        ['FINAL2', 'NOTABUG']
+    ])
+    wins = []
+    losses = []
+    draws = []
+    x_axis = []
+
+    for match in reversed(matches):
+        x_axis.append(
+            ' vs '.join([short_names[match[0]], short_names[match[1]]])
+        )
+        stats = get_winning_stats(match[0], match[1])
+        wins.append(
+            stats['wins']
+        )
+        losses.append(
+            stats['losses']
+        )
+        draws.append(
+            stats['draws']
+        )
+
+    traces = []
+    data = [wins, losses, draws]
+    opacity = 0.6
+    colors = ['rgba(2,84,0,'+str(opacity)+')', 'rgba(138,0,2,'+str(opacity)+')', 'rgba(138,133,127,'+str(opacity)+')']
+    colors_lines = ['rgb(2,84,0)', 'rgb(138,0,2)', 'rgba(138,133,127,1']
+    labels = ['Wins', 'Losses', 'Draws']
+    for i in range(0, 3):
+        traces.append(
+            go.Bar(
+                y=x_axis,
+                x=data[i],
+                name=labels[i],
+                orientation='h',
+                marker=dict(
+                    color=colors[i],
+                    line=dict(
+                        color=colors_lines[i],
+                        width=1
+                    )
+                )
+            )
+        )
+
+    layout=go.Layout(
+        barmode='stack',
+        yaxis=dict(
+        ),
+        xaxis=dict(
+            domain=[0.1,1]
+        )
+    )
+
+    fig = go.Figure(data=traces, layout=layout)
+    py.image.save_as(fig, filename='winning_stats.png')
+
+
+
 # plot_depth_by_round()
 # plot_bot_dnt_scatter(True)
 # plot_round_dnt_scatter(True)
@@ -542,13 +836,19 @@ def plot_radar_bots2():
 # plot_boards_dnt_bars()
 # plot_bots_dnt_bars()
 
-plot_radar_bots2()
-bot='final1'
+# plot_radar_bots2()
+bot = 'final1'
 print(
-[
-            statistics.mean(get_trace_bot_attribute(bot, 'nodes', None, 'RANDOM')),
-            statistics.mean(get_trace_bot_attribute(bot, 'depth', None, 'RANDOM')),
-            statistics.mean(get_trace_bot_attribute(bot, 'time', None, 'RANDOM')),
-            statistics.mean(get_trace_bot_attribute(bot, 'cache_hits', None, 'RANDOM')),
-            statistics.mean(get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM')),
-        ])
+    [
+        statistics.mean(get_trace_bot_attribute(bot, 'nodes', None, 'RANDOM')),
+        statistics.mean(get_trace_bot_attribute(bot, 'depth', None, 'RANDOM')),
+        statistics.mean(get_trace_bot_attribute(bot, 'time', None, 'RANDOM')),
+        statistics.mean(get_trace_bot_attribute(bot, 'cache_hits', None, 'RANDOM')),
+        statistics.mean(get_trace_bot_attribute(bot, 'cache_size', None, 'RANDOM'))
+    ])
+
+# plot_lines_bot()
+
+print(get_player_combinations(bot_logs))
+
+plot_match_results()
